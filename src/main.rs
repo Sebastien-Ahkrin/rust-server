@@ -1,7 +1,6 @@
 mod driver;
 mod server;
 
-use crate::driver::Driver;
 use server::Server;
 
 fn main() {
@@ -9,6 +8,7 @@ fn main() {
 
     server.get("/", "index.html");
     server.get("/about", "about.html");
+    server.fallback("404.html");
 
     server.run();
 }

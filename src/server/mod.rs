@@ -4,6 +4,7 @@ use std::net::{TcpListener, TcpStream};
 
 struct Response {
     get: Vec<(String, String)>,
+    fallback: (String, String),
 }
 
 pub struct Server {
@@ -22,12 +23,16 @@ impl Server {
             port,
             listener,
             driver: Driver::new("public"),
-            response: Response { get: Vec::new() },
+            response: Response { get: Vec::new(), fallback: (String::new(), String::new()) },
         }
     }
 
     pub fn get(&mut self, uri: &str, path: &str) {
         self.response.get.push((uri.to_string(), path.to_string()));
+    }
+
+    pub fn fallback(&mut self, path: &str) {
+        self.response.fallback = (String::from("/"), path.to_string());
     }
 
     pub fn run(&self) {
@@ -58,9 +63,11 @@ impl Server {
     }
 
     fn handle_response(&self, mut stream: TcpStream, code: &str, uri: &str) {
+        println!("Request received: {0} {1}", code, uri);
+
         match code {
             "GET" => {
-                let fallback = ("/".to_string(), "index.html".to_string());
+                let fallback = &self.response.fallback;
 
                 let (_, file) = self
                     .response

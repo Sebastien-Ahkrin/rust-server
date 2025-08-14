@@ -1,3 +1,7 @@
+mod server;
+
+use server::Server;
+
 fn main() {
-    println!("Hello, world!");
+    Server::new(8080).run();
 }

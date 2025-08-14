@@ -53,40 +53,32 @@ impl Server {
 
         let code = request.get(0).unwrap().split(" ").collect::<Vec<&str>>();
         let uri = code.get(1).unwrap_or(&"/");
-        
+
         self.handle_response(_stream, code.get(0).unwrap(), uri);
     }
 
     fn handle_response(&self, mut stream: TcpStream, code: &str, uri: &str) {
         match code {
             "GET" => {
-                let element = self
+                let fallback = ("/".to_string(), "index.html".to_string());
+
+                let (_, file) = self
                     .response
                     .get
                     .iter()
-                    .find(|(_name, _value)| _name == uri);
-                
-                match element {
-                    Some((_, file)) => {
-                        let content = self.driver.get_file(file.as_ref());
-                        let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Length: {0}\r\n\r\n{1}",
-                            content.len(),
-                            content
-                        );
+                    .find(|(_name, _value)| _name == uri)
+                    .unwrap_or(&fallback);
 
-                        stream
-                            .write_all(response.as_bytes())
-                            .expect("Failed to write to stream");
-                    },
-                    None => {
-                        let not_found_response = "HTTP/1.1 404 Not Found\r\n\r\n";
-                        stream
-                            .write_all(not_found_response.as_bytes())
-                            .expect("Failed to write to stream");
-                        return;
-                    }
-                }
+                let content = self.driver.get_file(file.as_ref());
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {0}\r\n\r\n{1}",
+                    content.len(),
+                    content
+                );
+
+                stream
+                    .write_all(response.as_bytes())
+                    .expect("Failed to write to stream");
             }
             _ => {
                 let not_found_response = "HTTP/1.1 404 Not Found\r\n\r\n";

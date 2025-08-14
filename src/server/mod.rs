@@ -1,11 +1,16 @@
+use crate::driver::Driver;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
-use crate::driver::Driver;
+
+struct Response {
+    get: Vec<(String, String)>,
+}
 
 pub struct Server {
     port: i32,
     listener: TcpListener,
-    driver: Driver
+    driver: Driver,
+    response: Response,
 }
 
 impl Server {
@@ -13,7 +18,16 @@ impl Server {
         let listener =
             TcpListener::bind(format!("127.0.0.1:{0}", port)).expect("Failed to bind to port");
 
-        Server { port, listener, driver: Driver::new("public") }
+        Server {
+            port,
+            listener,
+            driver: Driver::new("public"),
+            response: Response { get: Vec::new() },
+        }
+    }
+
+    pub fn get(&mut self, uri: &str, path: &str) {
+        self.response.get.push((uri.to_string(), path.to_string()));
     }
 
     pub fn run(&self) {
@@ -37,18 +51,50 @@ impl Server {
             .take_while(|line| !line.is_empty())
             .collect();
 
-        self.handle_response(_stream);
+        let code = request.get(0).unwrap().split(" ").collect::<Vec<&str>>();
+        let uri = code.get(1).unwrap_or(&"/");
+        
+        self.handle_response(_stream, code.get(0).unwrap(), uri);
     }
 
-    fn handle_response(&self, mut stream: TcpStream) {
-        let file = self.driver.get_file("index.html".as_ref());
+    fn handle_response(&self, mut stream: TcpStream, code: &str, uri: &str) {
+        match code {
+            "GET" => {
+                let element = self
+                    .response
+                    .get
+                    .iter()
+                    .find(|(_name, _value)| _name == uri);
+                
+                match element {
+                    Some((_, file)) => {
+                        let content = self.driver.get_file(file.as_ref());
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {0}\r\n\r\n{1}",
+                            content.len(),
+                            content
+                        );
 
-        let response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Length: {0}\r\n\r\n{1}",
-            file.len(),
-            file
-        );
+                        stream
+                            .write_all(response.as_bytes())
+                            .expect("Failed to write to stream");
+                    },
+                    None => {
+                        let not_found_response = "HTTP/1.1 404 Not Found\r\n\r\n";
+                        stream
+                            .write_all(not_found_response.as_bytes())
+                            .expect("Failed to write to stream");
+                        return;
+                    }
+                }
+            }
+            _ => {
+                let not_found_response = "HTTP/1.1 404 Not Found\r\n\r\n";
 
-        stream.write_all(response.as_bytes()).expect("Failed to write to stream");
+                stream
+                    .write_all(not_found_response.as_bytes())
+                    .expect("Failed to write to stream");
+            }
+        }
     }
 }

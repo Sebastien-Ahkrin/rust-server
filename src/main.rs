@@ -1,9 +1,14 @@
-mod server;
 mod driver;
+mod server;
 
-use server::Server;
 use crate::driver::Driver;
+use server::Server;
 
 fn main() {
-    Server::new(8080).run();
+    let mut server = Server::new(8080);
+
+    server.get("/", "index.html");
+    server.get("/about", "about.html");
+
+    server.run();
 }

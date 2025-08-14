@@ -14,7 +14,7 @@ impl Driver {
 
     pub fn get_file(&self, path: &Path) -> String {
         let file_path = Path::new(&self.name).join(path);
-        
+
         fs::read_to_string(Path::new(&file_path)).expect("Something went wrong reading the file")
     }
 }
